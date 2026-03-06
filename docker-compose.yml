@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cols-db
+    restart: always
+    environment:
+      POSTGRES_USER: cols_user
+      POSTGRES_PASSWORD: cols_password
+      POSTGRES_DB: cols_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - cols_pgdata:/var/lib/postgresql/data
+    networks:
+      - cols-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U cols_user -d cols_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cols-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cols.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - cols-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cols-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://cols_user:cols_password@db:5432/cols_db"
+      AUTH_SECRET: "kj8Hv2xQm4nR9pL5wY7cB3eA6fT0dS1gZ"
+      NEXTAUTH_URL: "http://localhost:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - cols-network
+
+volumes:
+  cols_pgdata:
+
+
+networks:
+  cols-network:
+    driver: bridge

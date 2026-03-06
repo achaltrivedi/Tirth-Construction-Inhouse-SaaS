@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("operator") // "admin" or "operator"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@index([createdAt])
+}
+
+model Site {
+  id            String   @id @default(cuid())
+  name          String
+  clientName    String
+  projectType   String
+  contractValue Float?
+  startDate     DateTime
+  status        String   @default("active") // "active", "completed", "on-hold"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions Transaction[]
+  workers      Worker[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Transaction {
+  id          String    @id @default(cuid())
+  siteId      String
+  date        DateTime
+  description String    @db.Text
+  cashIn      Float     @default(0)
+  cashOut     Float     @default(0)
+  netValue    Float     @default(0)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  site      Site       @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  auditLogs AuditLog[]
+
+  @@index([siteId])
+  @@index([date])
+  @@index([siteId, date])
+  @@index([isDeleted])
+  @@index([createdAt])
+}
+
+model Worker {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  siteId    String
+  wage      Float?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site       Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
+
+  @@index([siteId])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  workerId  String
+  date      DateTime
+  status    String   // "present", "absent", "half-day"
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@unique([workerId, date])
+  @@index([workerId])
+  @@index([date])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String
+  transactionId String?
+  action        String   // "create", "update", "delete"
+  oldValue      String?  @db.Text // JSON string of old values
+  newValue      String?  @db.Text // JSON string of new values
+  createdAt     DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([transactionId])
+  @@index([userId])
+  @@index([createdAt])
+}
