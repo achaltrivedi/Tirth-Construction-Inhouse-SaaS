@@ -35,15 +35,24 @@ export default function LoginPage() {
     return (
         <div className="login-container">
             <div className="login-card">
-                <div style={{ position: "relative", width: "120px", height: "120px", margin: "0 auto 1.5rem" }}>
-                    <Image
-                        src="/logo.png"
-                        alt="Tirth Cons logo"
-                        fill
-                        style={{ objectFit: "contain" }}
-                        unoptimized
-                        priority
-                    />
+                <div style={{
+                    background: "white",
+                    borderRadius: "12px",
+                    padding: "0.5rem",
+                    margin: "0 auto 1.5rem",
+                    width: "fit-content",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                }}>
+                    <div style={{ position: "relative", width: "120px", height: "120px" }}>
+                        <Image
+                            src="/logo.png"
+                            alt="Tirth Cons logo"
+                            fill
+                            style={{ objectFit: "contain" }}
+                            unoptimized
+                            priority
+                        />
+                    </div>
                 </div>
                 <h2>Welcome to Tirth Construction</h2>
                 <p className="subtitle">Construction Operations Ledger System</p>
@@ -84,7 +93,7 @@ export default function LoginPage() {
                 </form>
 
                 <p style={{ marginTop: "1.5rem", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
-                    Default: admin@cols.local / admin123
+
                 </p>
             </div>
         </div>

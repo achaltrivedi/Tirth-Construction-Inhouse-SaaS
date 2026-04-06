@@ -739,10 +739,31 @@ tbody tr:hover {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
+    padding-top: 2.5rem; /* Prevent overlap with hamburger menu */
   }
 
   .mobile-menu-btn {
     display: block !important;
+  }
+
+  .attendance-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .attendance-row .status-toggle {
+    justify-content: space-between;
+  }
+
+  /* Prevent tables from squishing text vertically on small screens */
+  table {
+    white-space: nowrap;
+  }
+
+  /* For filter bar inputs */
+  .filter-bar .form-group {
+    min-width: 100%;
   }
 }
 
