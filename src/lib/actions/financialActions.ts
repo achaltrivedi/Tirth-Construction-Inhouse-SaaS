@@ -11,7 +11,7 @@ export async function createSite(formData: FormData) {
     const clientName = formData.get("clientName") as string;
     const projectType = formData.get("projectType") as string;
     const contractValue = formData.get("contractValue")
-        ? parseFloat(formData.get("contractValue") as string)
+        ? (formData.get("contractValue") as string)
         : null;
     const startDate = new Date(formData.get("startDate") as string);
     const status = (formData.get("status") as string) || "active";
@@ -29,7 +29,7 @@ export async function updateSite(id: string, formData: FormData) {
     const clientName = formData.get("clientName") as string;
     const projectType = formData.get("projectType") as string;
     const contractValue = formData.get("contractValue")
-        ? parseFloat(formData.get("contractValue") as string)
+        ? (formData.get("contractValue") as string)
         : null;
     const startDate = new Date(formData.get("startDate") as string);
     const status = (formData.get("status") as string) || "active";
@@ -71,6 +71,15 @@ export async function getSiteById(id: string) {
             transactions: {
                 where: { isDeleted: false },
                 orderBy: { date: "desc" },
+                select: {
+                    id: true,
+                    date: true,
+                    description: true,
+                    cashIn: true,
+                    cashOut: true,
+                    netValue: true,
+                    addedBy: true,
+                },
             },
         },
     });
@@ -93,7 +102,8 @@ export async function getSiteSummary(siteId: string) {
 
 export async function createTransaction(
     formData: FormData,
-    userId: string
+    userId: string,
+    userName: string
 ) {
     const siteId = formData.get("siteId") as string;
     const date = new Date(formData.get("date") as string);
@@ -104,7 +114,7 @@ export async function createTransaction(
 
     await prisma.$transaction(async (tx) => {
         const transaction = await tx.transaction.create({
-            data: { siteId, date, description, cashIn, cashOut, netValue },
+            data: { siteId, date, description, cashIn, cashOut, netValue, addedBy: userName },
         });
 
         await tx.auditLog.create({
@@ -209,7 +219,16 @@ export async function getMasterLedger(filters?: {
 
     return prisma.transaction.findMany({
         where,
-        include: { site: { select: { name: true } } },
         orderBy: { date: "desc" },
+        select: {
+            id: true,
+            date: true,
+            description: true,
+            cashIn: true,
+            cashOut: true,
+            netValue: true,
+            addedBy: true,
+            site: { select: { name: true } },
+        },
     });
 }

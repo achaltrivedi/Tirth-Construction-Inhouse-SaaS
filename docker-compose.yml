@@ -24,7 +24,7 @@ services:
     container_name: cols-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@cols.local
+      PGADMIN_DEFAULT_EMAIL: admin@cols.com
       PGADMIN_DEFAULT_PASSWORD: admin123
     ports:
       - "5050:80"
