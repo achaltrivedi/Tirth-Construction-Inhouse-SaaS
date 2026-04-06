@@ -33,6 +33,7 @@ export default function AttendancePage() {
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [sites, setSites] = useState<{ id: string; name: string }[]>([]);
     const [siteFilter, setSiteFilter] = useState("");
+    const [workerFilter, setWorkerFilter] = useState("");
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({});
     const [saving, setSaving] = useState(false);
@@ -92,14 +93,22 @@ export default function AttendancePage() {
             endDate = `${selectedYear}-12-31`;
         }
 
-        const data = await getAttendanceHistory({
-            siteId: siteFilter || undefined,
-            startDate,
-            endDate,
-        });
+        // Load workers list for dropdown and history data in parallel
+        const [workerList, siteList, data] = await Promise.all([
+            getWorkers(siteFilter || undefined),
+            getSites(),
+            getAttendanceHistory({
+                siteId: siteFilter || undefined,
+                workerId: workerFilter || undefined,
+                startDate,
+                endDate,
+            }),
+        ]);
+        setWorkers(workerList as unknown as Worker[]);
+        setSites(siteList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
         setHistoryRecords(data as unknown as HistoryRecord[]);
         setHistoryLoading(false);
-    }, [viewMode, selectedMonth, selectedYear, siteFilter]);
+    }, [viewMode, selectedMonth, selectedYear, siteFilter, workerFilter]);
 
     useEffect(() => {
         if (viewMode === "daily") {
@@ -212,11 +221,20 @@ export default function AttendancePage() {
                 )}
                 <div className="form-group">
                     <label>Site</label>
-                    <select className="form-input" value={siteFilter} onChange={(e) => setSiteFilter(e.target.value)}>
+                    <select className="form-input" value={siteFilter} onChange={(e) => { setSiteFilter(e.target.value); setWorkerFilter(""); }}>
                         <option value="">All Sites</option>
                         {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                 </div>
+                {viewMode !== "daily" && (
+                    <div className="form-group">
+                        <label>Worker</label>
+                        <select className="form-input" value={workerFilter} onChange={(e) => setWorkerFilter(e.target.value)}>
+                            <option value="">All Workers</option>
+                            {workers.map((w) => <option key={w.id} value={w.id}>{w.name} ({w.site.name})</option>)}
+                        </select>
+                    </div>
+                )}
             </div>
 
             {/* ======= DAILY VIEW ======= */}
@@ -257,6 +275,20 @@ export default function AttendancePage() {
                                         H
                                     </button>
                                 </div>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="Work notes..."
+                                    value={attendance[w.id]?.notes || ""}
+                                    onChange={(e) => {
+                                        setAttendance((prev) => ({
+                                            ...prev,
+                                            [w.id]: { ...prev[w.id], notes: e.target.value },
+                                        }));
+                                        setSaved(false);
+                                    }}
+                                    style={{ flex: 1, minWidth: "120px", fontSize: "0.8rem" }}
+                                />
                             </div>
                         ))}
                     </div>

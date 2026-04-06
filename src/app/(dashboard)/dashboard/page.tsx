@@ -28,7 +28,17 @@ export default async function DashboardPage() {
 
     const recentTransactions = await prisma.transaction.findMany({
         where: { isDeleted: false },
-        include: { site: { select: { name: true } } },
+        select: {
+            id: true,
+            date: true,
+            description: true,
+            cashIn: true,
+            cashOut: true,
+            netValue: true,
+            addedBy: true,
+            createdAt: true,
+            site: { select: { name: true } },
+        },
         orderBy: { createdAt: "desc" },
         take: 5,
     });
@@ -133,6 +143,7 @@ export default async function DashboardPage() {
                                     <th style={{ textAlign: "right" }}>Cash In</th>
                                     <th style={{ textAlign: "right" }}>Cash Out</th>
                                     <th style={{ textAlign: "right" }}>Net</th>
+                                    <th>Added By</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -150,6 +161,7 @@ export default async function DashboardPage() {
                                         <td style={{ textAlign: "right" }} className="amount-net">
                                             {formatCurrency(t.netValue)}
                                         </td>
+                                        <td style={{ color: "var(--color-text-muted)", fontSize: "0.8rem" }}>{t.addedBy || "—"}</td>
                                     </tr>
                                 ))}
                             </tbody>

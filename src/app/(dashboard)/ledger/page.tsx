@@ -12,6 +12,7 @@ type LedgerEntry = {
     cashIn: number;
     cashOut: number;
     netValue: number;
+    addedBy: string | null;
     site: { name: string };
 };
 
@@ -142,6 +143,7 @@ export default function LedgerPage() {
                                 <th style={{ textAlign: "right" }}>Cash In</th>
                                 <th style={{ textAlign: "right" }}>Cash Out</th>
                                 <th style={{ textAlign: "right" }}>Net</th>
+                                <th>Added By</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -159,6 +161,7 @@ export default function LedgerPage() {
                                     <td style={{ textAlign: "right" }} className="amount-net">
                                         {fmt(e.netValue)}
                                     </td>
+                                    <td style={{ color: "var(--color-text-muted)", fontSize: "0.8rem" }}>{e.addedBy || "—"}</td>
                                 </tr>
                             ))}
                         </tbody>
