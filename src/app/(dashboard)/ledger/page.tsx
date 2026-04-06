@@ -73,7 +73,7 @@ export default function LedgerPage() {
                         window.location.href = `/api/export/ledger?${params.toString()}`;
                     }}
                 >
-                    <Download size={16} /> Export CSV
+                    <Download size={16} /> Export to Excel
                 </button>
             </div>
 
