@@ -10,7 +10,7 @@ type Site = {
     name: string;
     clientName: string;
     projectType: string;
-    contractValue: number | null;
+    contractValue: string | null;
     startDate: string;
     status: string;
     _count: { transactions: number };
@@ -197,8 +197,8 @@ export default function SitesPage() {
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Contract Value (₹)</label>
-                                    <input name="contractValue" type="number" className="form-input" placeholder="Optional" />
+                                    <label>Contract Value</label>
+                                    <input name="contractValue" type="text" className="form-input" placeholder="e.g. 50 Lacs or 2 Crores" />
                                 </div>
                                 <div className="form-group">
                                     <label>Start Date *</label>

@@ -20,6 +20,7 @@ type Transaction = {
     cashIn: number;
     cashOut: number;
     netValue: number;
+    addedBy: string | null;
 };
 
 type SiteData = {
@@ -27,7 +28,7 @@ type SiteData = {
     name: string;
     clientName: string;
     projectType: string;
-    contractValue: number | null;
+    contractValue: string | null;
     startDate: string;
     status: string;
     transactions: Transaction[];
@@ -45,6 +46,7 @@ export default function SiteDetailPage() {
     const siteId = params.id as string;
     const { data: session } = useSession();
     const userId = (session?.user as { id?: string })?.id || "";
+    const userName = (session?.user as { name?: string })?.name || "Unknown";
 
     const [site, setSite] = useState<SiteData | null>(null);
     const [summary, setSummary] = useState<SiteSummaryData | null>(null);
@@ -65,7 +67,7 @@ export default function SiteDetailPage() {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         formData.set("siteId", siteId);
-        await createTransaction(formData, userId);
+        await createTransaction(formData, userId, userName);
         setShowModal(false);
         load();
     };
@@ -145,7 +147,7 @@ export default function SiteDetailPage() {
                         <div className="stat-card">
                             <div className="stat-icon yellow"><IndianRupee size={24} /></div>
                             <div>
-                                <div className="stat-value" style={{ color: "var(--color-warning)" }}>{fmt(site.contractValue)}</div>
+                                <div className="stat-value" style={{ color: "var(--color-warning)" }}>{site.contractValue}</div>
                                 <div className="stat-label">Contract Value</div>
                             </div>
                         </div>
@@ -173,6 +175,7 @@ export default function SiteDetailPage() {
                                     <th style={{ textAlign: "right" }}>Cash In</th>
                                     <th style={{ textAlign: "right" }}>Cash Out</th>
                                     <th style={{ textAlign: "right" }}>Net</th>
+                                    <th>Added By</th>
                                     <th style={{ textAlign: "center" }}>Actions</th>
                                 </tr>
                             </thead>
@@ -190,6 +193,7 @@ export default function SiteDetailPage() {
                                         <td style={{ textAlign: "right" }} className="amount-net">
                                             {fmt(t.netValue)}
                                         </td>
+                                        <td style={{ color: "var(--color-text-muted)", fontSize: "0.8rem" }}>{t.addedBy || "—"}</td>
                                         <td style={{ textAlign: "center" }}>
                                             <button className="btn btn-danger btn-sm" onClick={() => handleDelete(t.id)}>
                                                 <Trash2 size={14} />
@@ -221,11 +225,11 @@ export default function SiteDetailPage() {
                             <div className="form-row">
                                 <div className="form-group">
                                     <label>Cash In (₹)</label>
-                                    <input name="cashIn" type="number" step="0.01" className="form-input" placeholder="0" defaultValue="0" />
+                                    <input name="cashIn" type="number" step="0.01" className="form-input" placeholder="0" />
                                 </div>
                                 <div className="form-group">
                                     <label>Cash Out (₹)</label>
-                                    <input name="cashOut" type="number" step="0.01" className="form-input" placeholder="0" defaultValue="0" />
+                                    <input name="cashOut" type="number" step="0.01" className="form-input" placeholder="0" />
                                 </div>
                             </div>
                             <div className="modal-actions">
