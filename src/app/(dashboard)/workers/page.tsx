@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Users } from "lucide-react";
+import Link from "next/link";
+import { Plus, Users, Eye } from "lucide-react";
 import { createWorker, getWorkers, deactivateWorker } from "@/lib/actions/attendanceActions";
 import { getSites } from "@/lib/actions/financialActions";
 
@@ -87,9 +88,14 @@ export default function WorkersPage() {
                                         {w.wage ? `₹${w.wage.toLocaleString("en-IN")}` : "—"}
                                     </td>
                                     <td style={{ textAlign: "center" }}>
-                                        <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(w.id)}>
-                                            Remove
-                                        </button>
+                                        <div style={{ display: "flex", gap: "0.25rem", justifyContent: "center" }}>
+                                            <Link href={`/workers/${w.id}`} className="btn btn-ghost btn-sm">
+                                                <Eye size={14} /> Details
+                                            </Link>
+                                            <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(w.id)}>
+                                                Remove
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
