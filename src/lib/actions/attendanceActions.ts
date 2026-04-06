@@ -174,3 +174,101 @@ export async function getWorkerAttendanceSummary(workerId: string) {
         totalDays: attendance.length,
     };
 }
+
+// ============ DEDUCTION ACTIONS ============
+
+export async function createDeduction(
+    workerId: string,
+    amount: number,
+    date: string,
+    reason?: string
+) {
+    await prisma.deduction.create({
+        data: {
+            workerId,
+            amount,
+            date: new Date(date),
+            reason: reason || null,
+        },
+    });
+
+    revalidatePath(`/workers/${workerId}`);
+    return { success: true };
+}
+
+export async function getDeductions(
+    workerId: string,
+    startDate?: string,
+    endDate?: string
+) {
+    const where: Record<string, unknown> = { workerId };
+
+    if (startDate || endDate) {
+        where.date = {};
+        if (startDate) (where.date as Record<string, unknown>).gte = new Date(startDate);
+        if (endDate) (where.date as Record<string, unknown>).lte = new Date(endDate);
+    }
+
+    return prisma.deduction.findMany({
+        where,
+        orderBy: { date: "desc" },
+    });
+}
+
+export async function deleteDeduction(id: string) {
+    const deduction = await prisma.deduction.delete({ where: { id } });
+    revalidatePath(`/workers/${deduction.workerId}`);
+    return { success: true };
+}
+
+export async function getWorkerWageSummary(
+    workerId: string,
+    startDate: string,
+    endDate: string
+) {
+    const worker = await prisma.worker.findUnique({
+        where: { id: workerId },
+        include: { site: { select: { name: true } } },
+    });
+
+    if (!worker) return null;
+
+    const dateFilter = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+    };
+
+    // Get attendance for the period
+    const attendance = await prisma.attendance.findMany({
+        where: { workerId, date: dateFilter },
+    });
+
+    const presentDays = attendance.filter((a) => a.status === "present").length;
+    const halfDays = attendance.filter((a) => a.status === "half-day").length;
+    const absentDays = attendance.filter((a) => a.status === "absent").length;
+    const effectiveDays = presentDays + halfDays * 0.5;
+
+    // Gross earnings
+    const grossAmount = effectiveDays * (worker.wage || 0);
+
+    // Get deductions for the period
+    const deductions = await prisma.deduction.findMany({
+        where: { workerId, date: dateFilter },
+        orderBy: { date: "desc" },
+    });
+
+    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
+    const netPayable = grossAmount - totalDeductions;
+
+    return {
+        worker,
+        presentDays,
+        halfDays,
+        absentDays,
+        effectiveDays,
+        grossAmount,
+        deductions,
+        totalDeductions,
+        netPayable,
+    };
+}

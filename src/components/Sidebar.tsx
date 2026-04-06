@@ -43,15 +43,6 @@ export default function Sidebar() {
 
             <aside className={`sidebar ${mobileOpen ? "open" : ""}`}>
                 <div className="sidebar-logo">
-                    <div style={{ position: "relative", width: "80px", height: "80px", flexShrink: 0, marginRight: "10px" }}>
-                        <Image
-                            src="/logo.png"
-                            alt="Logo"
-                            fill
-                            style={{ objectFit: "contain" }}
-                            unoptimized
-                        />
-                    </div>
                     <div>
                         <h1>Tirth Construction</h1>
                         <p>Operations Ledger System</p>
