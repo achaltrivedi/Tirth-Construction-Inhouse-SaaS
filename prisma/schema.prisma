@@ -26,7 +26,7 @@ model Site {
   name          String
   clientName    String
   projectType   String
-  contractValue Float?
+  contractValue String?
   startDate     DateTime
   status        String   @default("active") // "active", "completed", "on-hold"
   createdAt     DateTime @default(now())
@@ -47,6 +47,7 @@ model Transaction {
   cashIn      Float     @default(0)
   cashOut     Float     @default(0)
   netValue    Float     @default(0)
+  addedBy     String?   // User display name who created this entry
   isDeleted   Boolean   @default(false)
   deletedAt   DateTime?
   deletedBy   String?
@@ -75,6 +76,7 @@ model Worker {
 
   site       Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
   attendance Attendance[]
+  deductions Deduction[]
 
   @@index([siteId])
   @@index([isActive])
@@ -96,6 +98,21 @@ model Attendance {
   @@index([workerId])
   @@index([date])
   @@index([createdAt])
+}
+
+model Deduction {
+  id        String   @id @default(cuid())
+  workerId  String
+  date      DateTime
+  amount    Float
+  reason    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId])
+  @@index([date])
+  @@index([workerId, date])
 }
 
 model AuditLog {

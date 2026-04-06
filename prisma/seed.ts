@@ -1,43 +1,52 @@
 import { prisma } from "../src/lib/db";
 import { hashSync } from "bcryptjs";
 
+const USERS = [
+    {
+        name: "Admin",
+        email: "admin@cols.com",
+        password: "admin@123",
+        role: "admin",
+    },
+    {
+        name: "Milin Trivedi",
+        email: "milin@cols.com",
+        password: "milin@123",
+        role: "operator",
+    },
+    {
+        name: "Bhavesh Patel",
+        email: "bhavesh@cols.com",
+        password: "bhavesh@123",
+        role: "operator",
+    },
+    {
+        name: "User",
+        email: "user@cols.com",
+        password: "user@123",
+        role: "user",
+    },
+];
+
 async function main() {
-    // Create default admin user
-    const adminExists = await prisma.user.findUnique({
-        where: { email: "admin@cols.local" },
-    });
-
-    if (!adminExists) {
-        await prisma.user.create({
-            data: {
-                name: "Admin",
-                email: "admin@cols.local",
-                password: hashSync("admin123", 10),
-                role: "admin",
-            },
+    for (const user of USERS) {
+        const exists = await prisma.user.findUnique({
+            where: { email: user.email },
         });
-        console.log("✅ Default admin user created: admin@cols.local / admin123");
-    } else {
-        console.log("ℹ️  Admin user already exists.");
-    }
 
-    // Create a default operator user
-    const operatorExists = await prisma.user.findUnique({
-        where: { email: "operator@cols.local" },
-    });
-
-    if (!operatorExists) {
-        await prisma.user.create({
-            data: {
-                name: "Operator",
-                email: "operator@cols.local",
-                password: hashSync("operator123", 10),
-                role: "operator",
-            },
-        });
-        console.log("✅ Default operator user created: operator@cols.local / operator123");
-    } else {
-        console.log("ℹ️  Operator user already exists.");
+        if (!exists) {
+            await prisma.user.create({
+                data: {
+                    name: user.name,
+                    email: user.email,
+                    password: hashSync(user.password, 10),
+                    role: user.role,
+                },
+            });
+            console.log(`✅ User created: ${user.email} / ${user.password}`);
+        } else {
+            console.log(`ℹ️  User already exists: ${user.email}`);
+        }
     }
 }
 
