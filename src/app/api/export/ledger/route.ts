@@ -100,6 +100,48 @@ export async function GET(req: NextRequest) {
     };
     totalRow.getCell("description").alignment = { horizontal: "right" };
 
+    // ===== USER-WISE BREAKDOWN =====
+    // Blank separator row
+    sheet.addRow({});
+
+    // Section header
+    const breakdownHeader = sheet.addRow({ description: "User-wise Breakdown" });
+    breakdownHeader.font = { bold: true, size: 11 };
+    breakdownHeader.getCell("description").alignment = { horizontal: "left" };
+
+    // Sub-header row
+    const subHeader = sheet.addRow({
+        description: "User",
+        cashIn: "Cash In" as unknown as number,
+        cashOut: "Cash Out" as unknown as number,
+    });
+    subHeader.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    subHeader.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF334155" },
+    };
+
+    // Group transactions by addedBy
+    const userMap = new Map<string, { cashIn: number; cashOut: number }>();
+    for (const t of transactions) {
+        const user = t.addedBy || "Unknown";
+        const existing = userMap.get(user) || { cashIn: 0, cashOut: 0 };
+        existing.cashIn += t.cashIn;
+        existing.cashOut += t.cashOut;
+        userMap.set(user, existing);
+    }
+
+    for (const [user, totals] of userMap.entries()) {
+        const userRow = sheet.addRow({
+            description: user,
+            cashIn: totals.cashIn,
+            cashOut: totals.cashOut,
+        });
+        userRow.getCell("cashIn").numFmt = '"₹"#,##0.00';
+        userRow.getCell("cashOut").numFmt = '"₹"#,##0.00';
+    }
+
     // Render file buffer
     const buffer = await workbook.xlsx.writeBuffer();
 
