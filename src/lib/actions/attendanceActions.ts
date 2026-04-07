@@ -8,33 +8,33 @@ import { revalidatePath } from "next/cache";
 export async function createWorker(formData: FormData) {
     const name = formData.get("name") as string;
     const phone = (formData.get("phone") as string) || null;
-    const siteId = formData.get("siteId") as string;
     const wage = formData.get("wage")
         ? parseFloat(formData.get("wage") as string)
         : null;
 
     await prisma.worker.create({
-        data: { name, phone, siteId, wage },
+        data: { name, phone, wage },
     });
 
     revalidatePath("/attendance");
+    revalidatePath("/workers");
     return { success: true };
 }
 
 export async function updateWorker(id: string, formData: FormData) {
     const name = formData.get("name") as string;
     const phone = (formData.get("phone") as string) || null;
-    const siteId = formData.get("siteId") as string;
     const wage = formData.get("wage")
         ? parseFloat(formData.get("wage") as string)
         : null;
 
     await prisma.worker.update({
         where: { id },
-        data: { name, phone, siteId, wage },
+        data: { name, phone, wage },
     });
 
     revalidatePath("/attendance");
+    revalidatePath("/workers");
     return { success: true };
 }
 
@@ -44,7 +44,6 @@ export async function getWorkers(siteId?: string) {
 
     return prisma.worker.findMany({
         where,
-        include: { site: { select: { name: true } } },
         orderBy: { name: "asc" },
     });
 }
@@ -62,6 +61,7 @@ export async function deactivateWorker(id: string) {
 
 export async function markAttendance(
     workerId: string,
+    siteId: string,
     date: string,
     status: string,
     notes?: string
@@ -73,8 +73,8 @@ export async function markAttendance(
         where: {
             workerId_date: { workerId, date: dateObj },
         },
-        update: { status, notes: notes || null },
-        create: { workerId, date: dateObj, status, notes: notes || null },
+        update: { siteId, status, notes: notes || null },
+        create: { workerId, siteId, date: dateObj, status, notes: notes || null },
     });
 
     revalidatePath("/attendance");
@@ -82,8 +82,9 @@ export async function markAttendance(
 }
 
 export async function bulkMarkAttendance(
-    entries: { workerId: string; status: string; notes?: string }[],
-    date: string
+    entries: { workerId: string; siteId: string; status: string; notes?: string }[],
+    date: string,
+    markedBy?: string
 ) {
     const dateObj = new Date(date);
 
@@ -92,12 +93,14 @@ export async function bulkMarkAttendance(
             where: {
                 workerId_date: { workerId: entry.workerId, date: dateObj },
             },
-            update: { status: entry.status, notes: entry.notes || null },
+            update: { siteId: entry.siteId, status: entry.status, notes: entry.notes || null, markedBy: markedBy || null },
             create: {
                 workerId: entry.workerId,
+                siteId: entry.siteId,
                 date: dateObj,
                 status: entry.status,
                 notes: entry.notes || null,
+                markedBy: markedBy || null,
             },
         });
     }
@@ -111,12 +114,13 @@ export async function getAttendanceForDate(date: string, siteId?: string) {
 
     const where: Record<string, unknown> = { date: dateObj };
     if (siteId) {
-        where.worker = { siteId };
+        where.siteId = siteId; // Now querying Attendance.siteId instead of worker.siteId
     }
 
     return prisma.attendance.findMany({
         where,
         include: {
+            site: { select: { name: true } },
             worker: {
                 include: { site: { select: { name: true } } },
             },
@@ -133,12 +137,16 @@ export async function getAttendanceHistory(filters?: {
     const where: Record<string, unknown> = {};
 
     if (filters?.workerId) where.workerId = filters.workerId;
-    if (filters?.siteId) where.worker = { siteId: filters.siteId };
+    if (filters?.siteId) where.siteId = filters.siteId; // Query Attendance.siteId direct
 
     if (filters?.startDate || filters?.endDate) {
         where.date = {};
-        if (filters?.startDate) (where.date as Record<string, unknown>).gte = new Date(filters.startDate);
-        if (filters?.endDate) (where.date as Record<string, unknown>).lte = new Date(filters.endDate);
+        if (filters?.startDate && filters.startDate !== "undefined" && !isNaN(new Date(filters.startDate).getTime())) {
+            (where.date as Record<string, unknown>).gte = new Date(filters.startDate);
+        }
+        if (filters?.endDate && filters.endDate !== "undefined" && !isNaN(new Date(filters.endDate).getTime())) {
+            (where.date as Record<string, unknown>).lte = new Date(filters.endDate);
+        }
     }
 
     return prisma.attendance.findMany({
