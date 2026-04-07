@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
     const where: Record<string, unknown> = {};
     if (workerId) where.workerId = workerId;
-    if (siteId) where.worker = { siteId };
+    if (siteId) where.siteId = siteId;
     if (startDate || endDate) {
         where.date = {};
         if (startDate) (where.date as Record<string, unknown>).gte = new Date(startDate);
@@ -20,21 +20,21 @@ export async function GET(req: NextRequest) {
     const records = await prisma.attendance.findMany({
         where,
         include: {
-            worker: {
-                include: { site: { select: { name: true } } },
-            },
+            site: { select: { name: true } },
+            worker: { select: { name: true } },
         },
         orderBy: { date: "desc" },
     });
 
     // Build CSV
-    const header = "Date,Worker,Site,Status,Notes";
-    const rows = records.map((r) => {
+    const header = "Date,Worker,Site,Status,Notes,Marked By";
+    const rows = records.map((r: any) => {
         const date = new Date(r.date).toLocaleDateString("en-IN");
         const worker = r.worker.name.replace(/,/g, " ");
-        const site = r.worker.site.name.replace(/,/g, " ");
+        const site = r.site.name.replace(/,/g, " ");
         const notes = (r.notes || "").replace(/,/g, " ");
-        return `${date},${worker},${site},${r.status},${notes}`;
+        const markedBy = (r.markedBy || "").replace(/,/g, " ");
+        return `${date},${worker},${site},${r.status},${notes},${markedBy}`;
     });
 
     // Summary counts

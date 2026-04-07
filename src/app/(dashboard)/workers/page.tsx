@@ -11,8 +11,6 @@ type Worker = {
     name: string;
     phone: string | null;
     wage: number | null;
-    siteId: string;
-    site: { name: string };
 };
 
 export default function WorkersPage() {
@@ -22,9 +20,8 @@ export default function WorkersPage() {
     const [loading, setLoading] = useState(true);
 
     const load = async () => {
-        const [w, s] = await Promise.all([getWorkers(), getSites()]);
+        const w = await getWorkers();
         setWorkers(w as unknown as Worker[]);
-        setSites(s.map((site) => ({ id: site.id, name: site.name })));
         setLoading(false);
     };
 
@@ -73,7 +70,6 @@ export default function WorkersPage() {
                             <tr>
                                 <th>Name</th>
                                 <th>Phone</th>
-                                <th>Site</th>
                                 <th style={{ textAlign: "right" }}>Daily Wage</th>
                                 <th style={{ textAlign: "center" }}>Actions</th>
                             </tr>
@@ -83,7 +79,6 @@ export default function WorkersPage() {
                                 <tr key={w.id}>
                                     <td style={{ fontWeight: 500 }}>{w.name}</td>
                                     <td style={{ color: "var(--color-text-muted)" }}>{w.phone || "—"}</td>
-                                    <td><span className="badge badge-active">{w.site.name}</span></td>
                                     <td style={{ textAlign: "right" }}>
                                         {w.wage ? `₹${w.wage.toLocaleString("en-IN")}` : "—"}
                                     </td>
@@ -108,12 +103,7 @@ export default function WorkersPage() {
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <h3>Add Worker</h3>
-                        {sites.length === 0 ? (
-                            <div className="empty-state">
-                                <p>You need to create a site first before adding workers.</p>
-                            </div>
-                        ) : (
-                            <form onSubmit={handleCreate}>
+                        <form onSubmit={handleCreate}>
                                 <div className="form-group">
                                     <label>Worker Name *</label>
                                     <input name="name" className="form-input" placeholder="Full name" required />
@@ -128,19 +118,11 @@ export default function WorkersPage() {
                                         <input name="wage" type="number" className="form-input" placeholder="Optional" />
                                     </div>
                                 </div>
-                                <div className="form-group">
-                                    <label>Assigned Site *</label>
-                                    <select name="siteId" className="form-input" required>
-                                        <option value="">Select a site</option>
-                                        {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                    </select>
-                                </div>
                                 <div className="modal-actions">
                                     <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancel</button>
                                     <button type="submit" className="btn btn-primary">Add Worker</button>
                                 </div>
                             </form>
-                        )}
                     </div>
                 </div>
             )}
