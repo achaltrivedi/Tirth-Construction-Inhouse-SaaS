@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { CalendarCheck, Save, Download, Calendar, Users } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { getWorkers } from "@/lib/actions/attendanceActions";
 import { bulkMarkAttendance, getAttendanceForDate, getAttendanceHistory } from "@/lib/actions/attendanceActions";
 import { getSites } from "@/lib/actions/financialActions";
@@ -9,12 +10,11 @@ import { getSites } from "@/lib/actions/financialActions";
 type Worker = {
     id: string;
     name: string;
-    site: { name: string };
-    siteId: string;
 };
 
 type AttendanceEntry = {
     workerId: string;
+    siteId: string;
     status: string;
     notes: string;
 };
@@ -24,15 +24,18 @@ type HistoryRecord = {
     date: string;
     status: string;
     notes: string | null;
-    worker: { name: string; site: { name: string } };
+    markedBy: string | null;
+    site: { name: string };
+    worker: { name: string };
 };
 
 type ViewMode = "daily" | "monthly" | "yearly";
 
 export default function AttendancePage() {
+    const { data: session } = useSession();
+    const userName = (session?.user as { name?: string })?.name || "Unknown";
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [sites, setSites] = useState<{ id: string; name: string }[]>([]);
-    const [siteFilter, setSiteFilter] = useState("");
     const [workerFilter, setWorkerFilter] = useState("");
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({});
@@ -55,9 +58,9 @@ export default function AttendancePage() {
     // Load daily view data
     const loadDaily = useCallback(async () => {
         const [workerList, siteList, existingAttendance] = await Promise.all([
-            getWorkers(siteFilter || undefined),
+            getWorkers(),
             getSites(),
-            getAttendanceForDate(date, siteFilter || undefined),
+            getAttendanceForDate(date),
         ]);
 
         setWorkers(workerList as unknown as Worker[]);
@@ -65,17 +68,18 @@ export default function AttendancePage() {
 
         const map: Record<string, AttendanceEntry> = {};
         for (const w of workerList) {
-            const existing = (existingAttendance as { workerId: string; status: string; notes: string | null }[])
+            const existing = (existingAttendance as unknown as { workerId: string; siteId: string; status: string; notes: string | null }[])
                 .find((a) => a.workerId === w.id);
             map[w.id] = {
                 workerId: w.id,
+                siteId: existing?.siteId || (sites.length > 0 ? sites[0].id : ""),
                 status: existing?.status || "",
                 notes: existing?.notes || "",
             };
         }
         setAttendance(map);
         setSaved(false);
-    }, [siteFilter, date]);
+    }, [date]);
 
     // Load history view data
     const loadHistory = useCallback(async () => {
@@ -95,10 +99,9 @@ export default function AttendancePage() {
 
         // Load workers list for dropdown and history data in parallel
         const [workerList, siteList, data] = await Promise.all([
-            getWorkers(siteFilter || undefined),
+            getWorkers(),
             getSites(),
             getAttendanceHistory({
-                siteId: siteFilter || undefined,
                 workerId: workerFilter || undefined,
                 startDate,
                 endDate,
@@ -108,7 +111,7 @@ export default function AttendancePage() {
         setSites(siteList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
         setHistoryRecords(data as unknown as HistoryRecord[]);
         setHistoryLoading(false);
-    }, [viewMode, selectedMonth, selectedYear, siteFilter, workerFilter]);
+    }, [viewMode, selectedMonth, selectedYear, workerFilter]);
 
     useEffect(() => {
         if (viewMode === "daily") {
@@ -130,8 +133,9 @@ export default function AttendancePage() {
         setSaving(true);
         const entries = Object.values(attendance).filter((a) => a.status);
         await bulkMarkAttendance(
-            entries.map((a) => ({ workerId: a.workerId, status: a.status, notes: a.notes })),
-            date
+            entries.map((a) => ({ workerId: a.workerId, siteId: a.siteId, status: a.status, notes: a.notes })),
+            date,
+            userName
         );
         setSaving(false);
         setSaved(true);
@@ -144,7 +148,6 @@ export default function AttendancePage() {
 
     const getExportUrl = () => {
         const params = new URLSearchParams();
-        if (siteFilter) params.set("siteId", siteFilter);
 
         if (viewMode === "daily") {
             params.set("startDate", date);
@@ -219,19 +222,12 @@ export default function AttendancePage() {
                         </select>
                     </div>
                 )}
-                <div className="form-group">
-                    <label>Site</label>
-                    <select className="form-input" value={siteFilter} onChange={(e) => { setSiteFilter(e.target.value); setWorkerFilter(""); }}>
-                        <option value="">All Sites</option>
-                        {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                </div>
                 {viewMode !== "daily" && (
                     <div className="form-group">
                         <label>Worker</label>
                         <select className="form-input" value={workerFilter} onChange={(e) => setWorkerFilter(e.target.value)}>
                             <option value="">All Workers</option>
-                            {workers.map((w) => <option key={w.id} value={w.id}>{w.name} ({w.site.name})</option>)}
+                            {workers.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                         </select>
                     </div>
                 )}
@@ -250,7 +246,6 @@ export default function AttendancePage() {
                             <div className="attendance-row" key={w.id}>
                                 <div>
                                     <div className="worker-name">{w.name}</div>
-                                    <div className="worker-site">{w.site.name}</div>
                                 </div>
                                 <div className="status-toggle">
                                     <button
@@ -275,6 +270,20 @@ export default function AttendancePage() {
                                         H
                                     </button>
                                 </div>
+                                <select 
+                                    className="form-input" 
+                                    style={{ flex: 1, minWidth: "140px", fontSize: "0.8rem", padding: "0.4rem" }}
+                                    value={attendance[w.id]?.siteId || ""}
+                                    onChange={(e) => {
+                                        setAttendance((prev) => ({
+                                            ...prev,
+                                            [w.id]: { ...prev[w.id], siteId: e.target.value },
+                                        }));
+                                        setSaved(false);
+                                    }}
+                                >
+                                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
                                 <input
                                     type="text"
                                     className="form-input"
@@ -346,6 +355,7 @@ export default function AttendancePage() {
                                         <th>Site</th>
                                         <th>Status</th>
                                         <th>Notes</th>
+                                        <th>Marked By</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -353,11 +363,12 @@ export default function AttendancePage() {
                                         <tr key={r.id}>
                                             <td>{new Date(r.date).toLocaleDateString("en-IN")}</td>
                                             <td style={{ fontWeight: 500 }}>{r.worker.name}</td>
-                                            <td>{r.worker.site.name}</td>
+                                            <td>{r.site.name}</td>
                                             <td>
                                                 <span className={`badge badge-${r.status}`}>{r.status}</span>
                                             </td>
                                             <td style={{ color: "var(--color-text-muted)" }}>{r.notes || "—"}</td>
+                                            <td style={{ color: "var(--color-text-muted)", fontSize: "0.8rem" }}>{r.markedBy || "—"}</td>
                                         </tr>
                                     ))}
                                 </tbody>
