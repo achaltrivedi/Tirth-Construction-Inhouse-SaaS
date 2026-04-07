@@ -21,10 +21,10 @@ const USERS = [
         role: "operator",
     },
     {
-        name: "User",
-        email: "user@cols.com",
-        password: "user@123",
-        role: "user",
+        name: "Attendance Supervisor",
+        email: "attendance@cols.com",
+        password: "attendance@123",
+        role: "supervisor",
     },
 ];
 
