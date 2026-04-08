@@ -9,6 +9,8 @@ RUN npm ci --omit=dev
 # ---- Builder ----
 FROM base AS builder
 WORKDIR /app
+ARG DATABASE_URL="postgresql://cols_user:cols_password@db:5432/cols_db"
+ENV DATABASE_URL=$DATABASE_URL
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
