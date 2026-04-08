@@ -14,6 +14,7 @@ ENV DATABASE_URL=$DATABASE_URL
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+RUN rm -f prisma.config.ts
 RUN npx prisma generate
 RUN npm run build
 
