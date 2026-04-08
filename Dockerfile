@@ -1,4 +1,4 @@
-FROM node:22-alpine@sha256:6e27f1a4b5b5e5c5e5c5e5c5e5c5e5c5e5c5e5c5e5c5e5c5e5c5e5c5e5c5 AS base
+FROM node:22-alpine AS base
 
 # ---- Dependencies ----
 FROM base AS deps
