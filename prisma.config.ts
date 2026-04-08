@@ -1,4 +1,4 @@
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 const databaseUrl =
   process.env.DATABASE_URL ??
