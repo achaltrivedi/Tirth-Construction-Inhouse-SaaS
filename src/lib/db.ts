@@ -7,10 +7,12 @@ const globalForPrisma = globalThis as unknown as {
 
 const databaseUrl =
   process.env.DATABASE_URL ??
-  "postgresql://cols_user:cols_password@db:5432/cols_db";
+  (process.env.NODE_ENV === "production"
+    ? undefined
+    : "postgresql://cols_user:cols_password@db:5432/cols_db");
 
 const adapter = new PrismaPg({
-  connectionString: databaseUrl,
+  connectionString: databaseUrl!,
 });
 
 export const prisma =
