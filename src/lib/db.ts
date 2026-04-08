@@ -5,8 +5,12 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+const databaseUrl =
+  process.env.DATABASE_URL ??
+  "postgresql://cols_user:cols_password@db:5432/cols_db";
+
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL!,
+  connectionString: databaseUrl,
 });
 
 export const prisma =
