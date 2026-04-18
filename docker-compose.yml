@@ -4,11 +4,11 @@ services:
     container_name: cols-db
     restart: always
     environment:
-      POSTGRES_USER: cols_user
-      POSTGRES_PASSWORD: cols_password
-      POSTGRES_DB: cols_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - cols_pgdata:/var/lib/postgresql/data
     networks:
@@ -24,8 +24,8 @@ services:
     container_name: cols-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@cols.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
       - "5050:80"
     depends_on:
@@ -38,14 +38,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        DATABASE_URL: ${APP_DATABASE_URL}
     container_name: cols-app
     restart: always
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: "postgresql://cols_user:cols_password@db:5432/cols_db"
-      AUTH_SECRET: "kj8Hv2xQm4nR9pL5wY7cB3eA6fT0dS1gZ"
-      NEXTAUTH_URL: "http://localhost:3000"
+      DATABASE_URL: ${APP_DATABASE_URL}
+      AUTH_SECRET: ${APP_AUTH_SECRET}
+      NEXTAUTH_URL: ${APP_URL}
+      ALLOW_DEFAULT_SEED_USERS: ${APP_SEED_DEFAULT_USERS}
     depends_on:
       db:
         condition: service_healthy

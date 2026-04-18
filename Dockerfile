@@ -20,8 +20,6 @@ RUN npm run build
 # ---- Runner ----
 FROM base AS runner
 WORKDIR /app
-ARG DATABASE_URL="postgresql://cols_user:cols_password@db:5432/cols_db"
-ENV DATABASE_URL=$DATABASE_URL
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -44,4 +42,7 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/login >/dev/null || exit 1
+
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node server.js"]
