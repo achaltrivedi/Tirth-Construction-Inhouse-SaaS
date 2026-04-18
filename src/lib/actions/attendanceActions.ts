@@ -2,10 +2,13 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { requireUser } from "@/lib/security";
 
 // ============ WORKER ACTIONS ============
 
 export async function createWorker(formData: FormData) {
+    await requireUser();
+
     const name = formData.get("name") as string;
     const phone = (formData.get("phone") as string) || null;
     const wage = formData.get("wage")
@@ -22,6 +25,8 @@ export async function createWorker(formData: FormData) {
 }
 
 export async function updateWorker(id: string, formData: FormData) {
+    await requireUser();
+
     const name = formData.get("name") as string;
     const phone = (formData.get("phone") as string) || null;
     const wage = formData.get("wage")
@@ -39,6 +44,8 @@ export async function updateWorker(id: string, formData: FormData) {
 }
 
 export async function getWorkers(siteId?: string) {
+    await requireUser();
+
     const where: Record<string, unknown> = { isActive: true };
     if (siteId) where.siteId = siteId;
 
@@ -49,6 +56,8 @@ export async function getWorkers(siteId?: string) {
 }
 
 export async function deactivateWorker(id: string) {
+    await requireUser();
+
     await prisma.worker.update({
         where: { id },
         data: { isActive: false },
@@ -66,6 +75,8 @@ export async function markAttendance(
     status: string,
     notes?: string
 ) {
+    await requireUser();
+
     const dateObj = new Date(date);
 
     // Upsert to handle duplicates - update if exists, create if not
@@ -86,6 +97,7 @@ export async function bulkMarkAttendance(
     date: string,
     markedBy?: string
 ) {
+    const user = await requireUser();
     const dateObj = new Date(date);
 
     for (const entry of entries) {
@@ -93,14 +105,14 @@ export async function bulkMarkAttendance(
             where: {
                 workerId_date: { workerId: entry.workerId, date: dateObj },
             },
-            update: { siteId: entry.siteId, status: entry.status, notes: entry.notes || null, markedBy: markedBy || null },
+            update: { siteId: entry.siteId, status: entry.status, notes: entry.notes || null, markedBy: markedBy || user.name || null },
             create: {
                 workerId: entry.workerId,
                 siteId: entry.siteId,
                 date: dateObj,
                 status: entry.status,
                 notes: entry.notes || null,
-                markedBy: markedBy || null,
+                markedBy: markedBy || user.name || null,
             },
         });
     }
@@ -110,6 +122,8 @@ export async function bulkMarkAttendance(
 }
 
 export async function getAttendanceForDate(date: string, siteId?: string) {
+    await requireUser();
+
     const dateObj = new Date(date);
 
     const where: Record<string, unknown> = { date: dateObj };
@@ -134,6 +148,8 @@ export async function getAttendanceHistory(filters?: {
     startDate?: string;
     endDate?: string;
 }) {
+    await requireUser();
+
     const where: Record<string, unknown> = {};
 
     if (filters?.workerId) where.workerId = filters.workerId;
@@ -161,6 +177,8 @@ export async function getAttendanceHistory(filters?: {
 }
 
 export async function getWorkerAttendanceSummary(workerId: string) {
+    await requireUser();
+
     const worker = await prisma.worker.findUnique({
         where: { id: workerId },
         include: { site: { select: { name: true } } },
@@ -191,6 +209,8 @@ export async function createDeduction(
     date: string,
     reason?: string
 ) {
+    await requireUser();
+
     await prisma.deduction.create({
         data: {
             workerId,
@@ -209,6 +229,8 @@ export async function getDeductions(
     startDate?: string,
     endDate?: string
 ) {
+    await requireUser();
+
     const where: Record<string, unknown> = { workerId };
 
     if (startDate || endDate) {
@@ -224,6 +246,8 @@ export async function getDeductions(
 }
 
 export async function deleteDeduction(id: string) {
+    await requireUser();
+
     const deduction = await prisma.deduction.delete({ where: { id } });
     revalidatePath(`/workers/${deduction.workerId}`);
     return { success: true };
@@ -234,6 +258,8 @@ export async function getWorkerWageSummary(
     startDate: string,
     endDate: string
 ) {
+    await requireUser();
+
     const worker = await prisma.worker.findUnique({
         where: { id: workerId },
         include: { site: { select: { name: true } } },
