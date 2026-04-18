@@ -22,9 +22,10 @@ type WorkerWageSummary = {
         id: string;
         name: string;
         phone: string | null;
-        wage: number;
-        site: { name: string };
+        wage: number | null;
+        site: { name: string } | null;
     };
+    dailyWage: number;
     presentDays: number;
     halfDays: number;
     absentDays: number;
@@ -67,7 +68,7 @@ export default function WorkerDetailPage() {
             setLoading(true);
             const data = await getWorkerWageSummary(workerId, dateRange.start, dateRange.end);
             if (!active) return;
-            setSummary(data as unknown as WorkerWageSummary);
+            setSummary(data as WorkerWageSummary | null);
             setLoading(false);
         })();
 
@@ -86,7 +87,7 @@ export default function WorkerDetailPage() {
         setShowDeductionModal(false);
         setLoading(true);
         const data = await getWorkerWageSummary(workerId, dateRange.start, dateRange.end);
-        setSummary(data as unknown as WorkerWageSummary);
+        setSummary(data as WorkerWageSummary | null);
         setLoading(false);
     };
 
@@ -95,16 +96,17 @@ export default function WorkerDetailPage() {
         await deleteDeduction(id);
         setLoading(true);
         const data = await getWorkerWageSummary(workerId, dateRange.start, dateRange.end);
-        setSummary(data as unknown as WorkerWageSummary);
+        setSummary(data as WorkerWageSummary | null);
         setLoading(false);
     };
 
-    const fmt = (val: number) => "₹" + val.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const fmt = (val: number) => "Rs. " + val.toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
     if (loading) return <p style={{ color: "var(--color-text-muted)" }}>Loading...</p>;
     if (!summary) return <p style={{ color: "var(--color-text-muted)" }}>Worker not found.</p>;
 
     const { worker } = summary;
+    const siteName = worker.site?.name || "Unassigned Site";
 
     return (
         <div className="animate-in">
@@ -116,8 +118,8 @@ export default function WorkerDetailPage() {
                 <div>
                     <h2>{worker.name}</h2>
                     <p>
-                        {worker.site.name} · Daily Wage: <strong>{fmt(worker.wage)}</strong>
-                        {worker.phone && <> · Phone: {worker.phone}</>}
+                        {siteName} | Daily Wage: <strong>{fmt(summary.dailyWage)}</strong>
+                        {worker.phone && <> | Phone: {worker.phone}</>}
                     </p>
                 </div>
                 <button className="btn btn-primary" onClick={() => setShowDeductionModal(true)}>
@@ -125,7 +127,6 @@ export default function WorkerDetailPage() {
                 </button>
             </div>
 
-            {/* Period Selector */}
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", alignItems: "end" }}>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                     <button
@@ -161,8 +162,14 @@ export default function WorkerDetailPage() {
                 )}
             </div>
 
-            {/* Wage Calculation Cards */}
             <div className="stats-grid">
+                <div className="stat-card">
+                    <div className="stat-icon blue"><IndianRupee size={20} /></div>
+                    <div>
+                        <div className="stat-value">{fmt(summary.dailyWage)}</div>
+                        <div className="stat-label">Daily Wage</div>
+                    </div>
+                </div>
                 <div className="stat-card">
                     <div className="stat-icon green"><Users size={20} /></div>
                     <div>
@@ -195,7 +202,6 @@ export default function WorkerDetailPage() {
                 </div>
             </div>
 
-            {/* Deductions Table */}
             <div className="card" style={{ marginTop: "1rem" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1rem" }}>
                     Deductions / Advances ({summary.deductions.length})
@@ -220,7 +226,7 @@ export default function WorkerDetailPage() {
                                 {summary.deductions.map((d) => (
                                     <tr key={d.id}>
                                         <td>{new Date(d.date).toLocaleDateString("en-IN")}</td>
-                                        <td>{d.reason || "—"}</td>
+                                        <td>{d.reason || "-"}</td>
                                         <td style={{ textAlign: "right" }} className="amount-out">{fmt(d.amount)}</td>
                                         <td style={{ textAlign: "center" }}>
                                             <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDeduction(d.id)}>
@@ -235,14 +241,12 @@ export default function WorkerDetailPage() {
                 )}
             </div>
 
-            {/* Summary Formula */}
             <div className="card" style={{ marginTop: "1rem", background: "var(--color-surface)", padding: "1rem" }}>
                 <p style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-                    <strong>Formula:</strong> ({summary.effectiveDays} days × {fmt(worker.wage)}/day) − {fmt(summary.totalDeductions)} deductions = <strong style={{ color: "var(--color-primary)" }}>{fmt(summary.netPayable)}</strong>
+                    <strong>Formula:</strong> ({summary.effectiveDays} days x {fmt(summary.dailyWage)}/day) - {fmt(summary.totalDeductions)} deductions = <strong style={{ color: "var(--color-primary)" }}>{fmt(summary.netPayable)}</strong>
                 </p>
             </div>
 
-            {/* Add Deduction Modal */}
             {showDeductionModal && (
                 <div className="modal-overlay" onClick={() => setShowDeductionModal(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -254,7 +258,7 @@ export default function WorkerDetailPage() {
                                     <input name="date" type="date" className="form-input" defaultValue={new Date().toISOString().split("T")[0]} required />
                                 </div>
                                 <div className="form-group">
-                                    <label>Amount (₹) *</label>
+                                    <label>Amount (Rs.) *</label>
                                     <input name="amount" type="number" step="0.01" className="form-input" placeholder="e.g. 500" required />
                                 </div>
                             </div>
