@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getMasterLedger } from "@/lib/actions/financialActions";
 import { getSites } from "@/lib/actions/financialActions";
 import { Search, Filter, Download } from "lucide-react";
@@ -27,15 +27,15 @@ export default function LedgerPage() {
     const [keyword, setKeyword] = useState("");
     const [loading, setLoading] = useState(true);
 
-    const load = async () => {
+    const load = async (filters?: {
+        siteId?: string;
+        startDate?: string;
+        endDate?: string;
+        keyword?: string;
+    }) => {
         setLoading(true);
         const [data, siteList] = await Promise.all([
-            getMasterLedger({
-                siteId: siteId || undefined,
-                startDate: startDate || undefined,
-                endDate: endDate || undefined,
-                keyword: keyword || undefined,
-            }),
+            getMasterLedger(filters),
             getSites(),
         ]);
         setEntries(data as unknown as LedgerEntry[]);
@@ -43,11 +43,35 @@ export default function LedgerPage() {
         setLoading(false);
     };
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        let active = true;
+
+        void (async () => {
+            const [data, siteList] = await Promise.all([
+                getMasterLedger(),
+                getSites(),
+            ]);
+
+            if (!active) return;
+
+            setEntries(data as unknown as LedgerEntry[]);
+            setSites(siteList.map((s) => ({ id: s.id, name: s.name })));
+            setLoading(false);
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const handleFilter = (e: React.FormEvent) => {
         e.preventDefault();
-        load();
+        void load({
+            siteId: siteId || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            keyword: keyword || undefined,
+        });
     };
 
     const fmt = (val: number) => "₹" + val.toLocaleString("en-IN", { maximumFractionDigits: 0 });
