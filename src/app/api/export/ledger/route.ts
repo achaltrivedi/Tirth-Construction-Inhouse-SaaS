@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/security";
 import ExcelJS from "exceljs";
 
 export async function GET(req: NextRequest) {
+    await requireUser();
+
     const { searchParams } = new URL(req.url);
     const siteId = searchParams.get("siteId") || undefined;
     const startDate = searchParams.get("startDate") || undefined;
@@ -37,7 +40,7 @@ export async function GET(req: NextRequest) {
     
     // Clean filename characters
     const safeSiteName = siteName.replace(/[<>:"/\\|?*]/g, "");
-    let filename = `${safeSiteName} - ${startStr} to ${endStr}.xlsx`;
+    const filename = `${safeSiteName} - ${startStr} to ${endStr}.xlsx`;
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Master Ledger");

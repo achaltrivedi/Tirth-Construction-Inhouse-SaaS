@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/security";
+
+type AttendanceExportRecord = {
+    date: Date;
+    status: string;
+    notes: string | null;
+    markedBy: string | null;
+    worker: { name: string };
+    site: { name: string };
+};
 
 export async function GET(req: NextRequest) {
+    await requireUser();
+
     const { searchParams } = new URL(req.url);
     const siteId = searchParams.get("siteId") || undefined;
     const startDate = searchParams.get("startDate") || undefined;
@@ -28,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     // Build CSV
     const header = "Date,Worker,Site,Status,Notes,Marked By";
-    const rows = records.map((r: any) => {
+    const rows = (records as AttendanceExportRecord[]).map((r) => {
         const date = new Date(r.date).toLocaleDateString("en-IN");
         const worker = r.worker.name.replace(/,/g, " ");
         const site = r.site.name.replace(/,/g, " ");
