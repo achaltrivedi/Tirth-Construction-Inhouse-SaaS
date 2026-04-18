@@ -41,6 +41,7 @@ export default function AttendancePage() {
     const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({});
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [saveError, setSaveError] = useState("");
 
     // History view
     const [viewMode, setViewMode] = useState<ViewMode>("daily");
@@ -93,9 +94,12 @@ export default function AttendancePage() {
                 for (const w of workerList) {
                     const existing = (existingAttendance as unknown as { workerId: string; siteId: string; status: string; notes: string | null }[])
                         .find((a) => a.workerId === w.id);
+                    const fallbackSiteId = normalizedSites.some((site) => site.id === existing?.siteId)
+                        ? existing?.siteId || ""
+                        : normalizedSites[0]?.id || "";
                     map[w.id] = {
                         workerId: w.id,
-                        siteId: existing?.siteId || normalizedSites[0]?.id || "",
+                        siteId: fallbackSiteId,
                         status: existing?.status || "",
                         notes: existing?.notes || "",
                     };
@@ -103,6 +107,7 @@ export default function AttendancePage() {
 
                 setAttendance(map);
                 setSaved(false);
+                setSaveError("");
             })();
         } else {
             void (async () => {
@@ -140,13 +145,26 @@ export default function AttendancePage() {
     };
 
     const handleSave = async () => {
+        setSaveError("");
+        setSaved(false);
+
+        if (sites.length === 0) {
+            setSaveError("Create at least one site before saving attendance.");
+            return;
+        }
+
         setSaving(true);
         const entries = Object.values(attendance).filter((a) => a.status);
-        await bulkMarkAttendance(
+        const result = await bulkMarkAttendance(
             entries.map((a) => ({ workerId: a.workerId, siteId: a.siteId, status: a.status, notes: a.notes })),
             date,
             userName
         );
+        if (!result.success) {
+            setSaveError(result.error ?? "Unable to save attendance.");
+            setSaving(false);
+            return;
+        }
         setSaving(false);
         setSaved(true);
     };
@@ -171,6 +189,9 @@ export default function AttendancePage() {
             params.set("startDate", `${selectedYear}-01-01`);
             params.set("endDate", `${selectedYear}-12-31`);
         }
+        if (workerFilter) {
+            params.set("workerId", workerFilter);
+        }
         return `/api/export/attendance?${params.toString()}`;
     };
 
@@ -186,7 +207,7 @@ export default function AttendancePage() {
                         className="btn btn-ghost"
                         onClick={() => { window.location.href = getExportUrl(); }}
                     >
-                        <Download size={16} /> Export CSV
+                        <Download size={16} /> Export Excel
                     </button>
                     {viewMode === "daily" && (
                         <button className="btn btn-success" onClick={handleSave} disabled={saving}>
@@ -195,6 +216,12 @@ export default function AttendancePage() {
                     )}
                 </div>
             </div>
+
+            {saveError ? (
+                <div className="form-error" style={{ marginBottom: "1rem" }}>
+                    {saveError}
+                </div>
+            ) : null}
 
             {/* View mode tabs */}
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
@@ -284,14 +311,17 @@ export default function AttendancePage() {
                                     className="form-input" 
                                     style={{ flex: 1, minWidth: "140px", fontSize: "0.8rem", padding: "0.4rem" }}
                                     value={attendance[w.id]?.siteId || ""}
+                                    disabled={sites.length === 0}
                                     onChange={(e) => {
                                         setAttendance((prev) => ({
                                             ...prev,
                                             [w.id]: { ...prev[w.id], siteId: e.target.value },
                                         }));
                                         setSaved(false);
+                                        setSaveError("");
                                     }}
                                 >
+                                    {sites.length === 0 && <option value="">No sites available</option>}
                                     {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                                 <input
@@ -305,6 +335,7 @@ export default function AttendancePage() {
                                             [w.id]: { ...prev[w.id], notes: e.target.value },
                                         }));
                                         setSaved(false);
+                                        setSaveError("");
                                     }}
                                     style={{ flex: 1, minWidth: "120px", fontSize: "0.8rem" }}
                                 />
