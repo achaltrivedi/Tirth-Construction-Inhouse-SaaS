@@ -14,7 +14,6 @@ import {
     X,
 } from "lucide-react";
 import { useState } from "react";
-import Image from "next/image";
 
 const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
