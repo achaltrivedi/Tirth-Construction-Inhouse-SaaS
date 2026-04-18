@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, IndianRupee } from "lucide-react";
 import {
@@ -44,43 +43,56 @@ type SiteSummaryData = {
 export default function SiteDetailPage() {
     const params = useParams();
     const siteId = params.id as string;
-    const { data: session } = useSession();
-    const userId = (session?.user as { id?: string })?.id || "";
-    const userName = (session?.user as { name?: string })?.name || "Unknown";
 
     const [site, setSite] = useState<SiteData | null>(null);
     const [summary, setSummary] = useState<SiteSummaryData | null>(null);
     const [showModal, setShowModal] = useState(false);
 
-    const load = useCallback(async () => {
+    const load = async () => {
         const [s, sum] = await Promise.all([
             getSiteById(siteId),
             getSiteSummary(siteId),
         ]);
         setSite(s as unknown as SiteData);
         setSummary(sum);
-    }, [siteId]);
+    };
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        let active = true;
+
+        void (async () => {
+            const [s, sum] = await Promise.all([
+                getSiteById(siteId),
+                getSiteSummary(siteId),
+            ]);
+            if (!active) return;
+            setSite(s as unknown as SiteData);
+            setSummary(sum);
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, [siteId]);
 
     const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         formData.set("siteId", siteId);
-        await createTransaction(formData, userId, userName);
+        await createTransaction(formData);
         setShowModal(false);
-        load();
+        void load();
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure you want to remove this entry? (soft-delete)")) return;
-        await softDeleteTransaction(id, userId);
-        load();
+        await softDeleteTransaction(id);
+        void load();
     };
 
     const handleStatusChange = async (newStatus: string) => {
         await updateSiteStatus(siteId, newStatus);
-        load();
+        void load();
     };
 
     const nextStatus = (current: string) => {

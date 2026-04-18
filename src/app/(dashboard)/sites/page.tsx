@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Building2, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { createSite, getSites, updateSiteStatus } from "@/lib/actions/financialActions";
@@ -32,7 +32,20 @@ export default function SitesPage() {
         setLoading(false);
     };
 
-    useEffect(() => { loadSites(); }, []);
+    useEffect(() => {
+        let active = true;
+
+        void (async () => {
+            const data = await getSites();
+            if (!active) return;
+            setSites(data as unknown as Site[]);
+            setLoading(false);
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     // Filter + paginate
     const filtered = useMemo(() => {
@@ -46,22 +59,19 @@ export default function SitesPage() {
         currentPage * ITEMS_PER_PAGE
     );
 
-    // Reset page when filter changes
-    useEffect(() => { setCurrentPage(1); }, [statusFilter]);
-
     const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         await createSite(formData);
         setShowModal(false);
-        loadSites();
+        void loadSites();
     };
 
     const handleStatusChange = async (siteId: string, newStatus: string, e: React.MouseEvent) => {
         e.preventDefault(); // prevent navigating to the site detail page
         e.stopPropagation();
         await updateSiteStatus(siteId, newStatus);
-        loadSites();
+        void loadSites();
     };
 
     const nextStatus = (current: string) => {
@@ -85,7 +95,10 @@ export default function SitesPage() {
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
                 <button
                     className={`btn btn-sm ${!statusFilter ? "btn-primary" : "btn-ghost"}`}
-                    onClick={() => setStatusFilter("")}
+                    onClick={() => {
+                        setStatusFilter("");
+                        setCurrentPage(1);
+                    }}
                 >
                     All ({sites.length})
                 </button>
@@ -93,7 +106,10 @@ export default function SitesPage() {
                     <button
                         key={s}
                         className={`btn btn-sm ${statusFilter === s ? "btn-primary" : "btn-ghost"}`}
-                        onClick={() => setStatusFilter(s)}
+                        onClick={() => {
+                            setStatusFilter(s);
+                            setCurrentPage(1);
+                        }}
                     >
                         {s.charAt(0).toUpperCase() + s.slice(1)} ({sites.filter((site) => site.status === s).length})
                     </button>
