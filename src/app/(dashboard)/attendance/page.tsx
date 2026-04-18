@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarCheck, Save, Download, Calendar, Users } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { getWorkers } from "@/lib/actions/attendanceActions";
@@ -56,70 +56,80 @@ export default function AttendancePage() {
     const yearOptions = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
 
     // Load daily view data
-    const loadDaily = useCallback(async () => {
-        const [workerList, siteList, existingAttendance] = await Promise.all([
-            getWorkers(),
-            getSites(),
-            getAttendanceForDate(date),
-        ]);
-
-        setWorkers(workerList as unknown as Worker[]);
-        setSites(siteList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
-
-        const map: Record<string, AttendanceEntry> = {};
-        for (const w of workerList) {
-            const existing = (existingAttendance as unknown as { workerId: string; siteId: string; status: string; notes: string | null }[])
-                .find((a) => a.workerId === w.id);
-            map[w.id] = {
-                workerId: w.id,
-                siteId: existing?.siteId || (sites.length > 0 ? sites[0].id : ""),
-                status: existing?.status || "",
-                notes: existing?.notes || "",
-            };
-        }
-        setAttendance(map);
-        setSaved(false);
-    }, [date]);
-
-    // Load history view data
-    const loadHistory = useCallback(async () => {
-        setHistoryLoading(true);
-        let startDate: string;
-        let endDate: string;
-
+    const historyRange = useMemo(() => {
         if (viewMode === "monthly") {
             const [y, m] = selectedMonth.split("-");
-            startDate = `${y}-${m}-01`;
             const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
-            endDate = `${y}-${m}-${lastDay}`;
-        } else {
-            startDate = `${selectedYear}-01-01`;
-            endDate = `${selectedYear}-12-31`;
+            return {
+                startDate: `${y}-${m}-01`,
+                endDate: `${y}-${m}-${lastDay}`,
+            };
         }
 
-        // Load workers list for dropdown and history data in parallel
-        const [workerList, siteList, data] = await Promise.all([
-            getWorkers(),
-            getSites(),
-            getAttendanceHistory({
-                workerId: workerFilter || undefined,
-                startDate,
-                endDate,
-            }),
-        ]);
-        setWorkers(workerList as unknown as Worker[]);
-        setSites(siteList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
-        setHistoryRecords(data as unknown as HistoryRecord[]);
-        setHistoryLoading(false);
-    }, [viewMode, selectedMonth, selectedYear, workerFilter]);
+        return {
+            startDate: `${selectedYear}-01-01`,
+            endDate: `${selectedYear}-12-31`,
+        };
+    }, [selectedMonth, selectedYear, viewMode]);
 
     useEffect(() => {
+        let active = true;
+
         if (viewMode === "daily") {
-            loadDaily();
+            void (async () => {
+                const [workerList, siteList, existingAttendance] = await Promise.all([
+                    getWorkers(),
+                    getSites(),
+                    getAttendanceForDate(date),
+                ]);
+
+                if (!active) return;
+
+                const normalizedSites = siteList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
+                setWorkers(workerList as unknown as Worker[]);
+                setSites(normalizedSites);
+
+                const map: Record<string, AttendanceEntry> = {};
+                for (const w of workerList) {
+                    const existing = (existingAttendance as unknown as { workerId: string; siteId: string; status: string; notes: string | null }[])
+                        .find((a) => a.workerId === w.id);
+                    map[w.id] = {
+                        workerId: w.id,
+                        siteId: existing?.siteId || normalizedSites[0]?.id || "",
+                        status: existing?.status || "",
+                        notes: existing?.notes || "",
+                    };
+                }
+
+                setAttendance(map);
+                setSaved(false);
+            })();
         } else {
-            loadHistory();
+            void (async () => {
+                setHistoryLoading(true);
+                const [workerList, siteList, data] = await Promise.all([
+                    getWorkers(),
+                    getSites(),
+                    getAttendanceHistory({
+                        workerId: workerFilter || undefined,
+                        startDate: historyRange.startDate,
+                        endDate: historyRange.endDate,
+                    }),
+                ]);
+
+                if (!active) return;
+
+                setWorkers(workerList as unknown as Worker[]);
+                setSites(siteList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
+                setHistoryRecords(data as unknown as HistoryRecord[]);
+                setHistoryLoading(false);
+            })();
         }
-    }, [viewMode, loadDaily, loadHistory]);
+
+        return () => {
+            active = false;
+        };
+    }, [date, historyRange.endDate, historyRange.startDate, viewMode, workerFilter]);
 
     const setStatus = (workerId: string, status: string) => {
         setAttendance((prev) => ({
