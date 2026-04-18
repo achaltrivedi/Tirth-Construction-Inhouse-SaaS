@@ -9,18 +9,27 @@ import {
     BookOpen,
     Users,
     CalendarCheck,
+    UserPlus,
     LogOut,
     Menu,
     X,
 } from "lucide-react";
 import { useState } from "react";
 
-const navItems = [
+type NavItem = {
+    href: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    adminOnly?: boolean;
+};
+
+const navItems: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/sites", label: "Sites", icon: Building2 },
     { href: "/ledger", label: "Master Ledger", icon: BookOpen },
     { href: "/attendance", label: "Attendance", icon: CalendarCheck },
     { href: "/workers", label: "Workers", icon: Users },
+    { href: "/users", label: "Users", icon: UserPlus, adminOnly: true },
 ];
 
 export default function Sidebar() {
@@ -50,7 +59,9 @@ export default function Sidebar() {
 
                 <nav className="sidebar-nav">
                     <div className="nav-section-title">Main Menu</div>
-                    {navItems.map((item) => {
+                    {navItems
+                        .filter((item) => !item.adminOnly || user?.role === "admin")
+                        .map((item) => {
                         const Icon = item.icon;
                         const isActive =
                             pathname === item.href || pathname.startsWith(item.href + "/");
