@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, IndianRupee, Calendar, Users } from "lucide-react";
@@ -51,7 +51,7 @@ export default function WorkerDetailPage() {
 
     const yearOptions = Array.from({ length: 5 }, (_, i) => String(now.getFullYear() - i));
 
-    const getDateRange = useCallback(() => {
+    const dateRange = useMemo(() => {
         if (viewMode === "monthly") {
             const [y, m] = selectedMonth.split("-");
             const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
@@ -60,15 +60,21 @@ export default function WorkerDetailPage() {
         return { start: `${selectedYear}-01-01`, end: `${selectedYear}-12-31` };
     }, [viewMode, selectedMonth, selectedYear]);
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        const { start, end } = getDateRange();
-        const data = await getWorkerWageSummary(workerId, start, end);
-        setSummary(data as unknown as WorkerWageSummary);
-        setLoading(false);
-    }, [workerId, getDateRange]);
+    useEffect(() => {
+        let active = true;
 
-    useEffect(() => { load(); }, [load]);
+        void (async () => {
+            setLoading(true);
+            const data = await getWorkerWageSummary(workerId, dateRange.start, dateRange.end);
+            if (!active) return;
+            setSummary(data as unknown as WorkerWageSummary);
+            setLoading(false);
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, [dateRange.end, dateRange.start, workerId]);
 
     const handleAddDeduction = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -78,13 +84,19 @@ export default function WorkerDetailPage() {
         const reason = (formData.get("reason") as string) || undefined;
         await createDeduction(workerId, amount, date, reason);
         setShowDeductionModal(false);
-        load();
+        setLoading(true);
+        const data = await getWorkerWageSummary(workerId, dateRange.start, dateRange.end);
+        setSummary(data as unknown as WorkerWageSummary);
+        setLoading(false);
     };
 
     const handleDeleteDeduction = async (id: string) => {
         if (!confirm("Remove this deduction?")) return;
         await deleteDeduction(id);
-        load();
+        setLoading(true);
+        const data = await getWorkerWageSummary(workerId, dateRange.start, dateRange.end);
+        setSummary(data as unknown as WorkerWageSummary);
+        setLoading(false);
     };
 
     const fmt = (val: number) => "₹" + val.toLocaleString("en-IN", { maximumFractionDigits: 0 });

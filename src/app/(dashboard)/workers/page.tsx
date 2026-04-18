@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Users, Eye } from "lucide-react";
 import { createWorker, getWorkers, deactivateWorker } from "@/lib/actions/attendanceActions";
-import { getSites } from "@/lib/actions/financialActions";
 
 type Worker = {
     id: string;
@@ -15,7 +14,6 @@ type Worker = {
 
 export default function WorkersPage() {
     const [workers, setWorkers] = useState<Worker[]>([]);
-    const [sites, setSites] = useState<{ id: string; name: string }[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -25,20 +23,33 @@ export default function WorkersPage() {
         setLoading(false);
     };
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        let active = true;
+
+        void (async () => {
+            const w = await getWorkers();
+            if (!active) return;
+            setWorkers(w as unknown as Worker[]);
+            setLoading(false);
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         await createWorker(formData);
         setShowModal(false);
-        load();
+        void load();
     };
 
     const handleDeactivate = async (id: string) => {
         if (!confirm("Are you sure you want to remove this worker?")) return;
         await deactivateWorker(id);
-        load();
+        void load();
     };
 
     return (
