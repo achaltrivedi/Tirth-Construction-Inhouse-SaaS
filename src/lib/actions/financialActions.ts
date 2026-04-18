@@ -2,11 +2,13 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { logger } from "@/lib/logger";
+import { requireUser } from "@/lib/security";
 
 // ============ SITE ACTIONS ============
 
 export async function createSite(formData: FormData) {
+    await requireUser();
+
     const name = formData.get("name") as string;
     const clientName = formData.get("clientName") as string;
     const projectType = formData.get("projectType") as string;
@@ -25,6 +27,8 @@ export async function createSite(formData: FormData) {
 }
 
 export async function updateSite(id: string, formData: FormData) {
+    await requireUser();
+
     const name = formData.get("name") as string;
     const clientName = formData.get("clientName") as string;
     const projectType = formData.get("projectType") as string;
@@ -45,6 +49,8 @@ export async function updateSite(id: string, formData: FormData) {
 }
 
 export async function getSites() {
+    await requireUser();
+
     return prisma.site.findMany({
         orderBy: { createdAt: "desc" },
         include: {
@@ -54,6 +60,8 @@ export async function getSites() {
 }
 
 export async function updateSiteStatus(id: string, status: string) {
+    await requireUser();
+
     await prisma.site.update({
         where: { id },
         data: { status },
@@ -65,6 +73,8 @@ export async function updateSiteStatus(id: string, status: string) {
 }
 
 export async function getSiteById(id: string) {
+    await requireUser();
+
     return prisma.site.findUnique({
         where: { id },
         include: {
@@ -86,6 +96,8 @@ export async function getSiteById(id: string) {
 }
 
 export async function getSiteSummary(siteId: string) {
+    await requireUser();
+
     const transactions = await prisma.transaction.findMany({
         where: { siteId, isDeleted: false },
     });
@@ -100,11 +112,8 @@ export async function getSiteSummary(siteId: string) {
 
 // ============ TRANSACTION ACTIONS ============
 
-export async function createTransaction(
-    formData: FormData,
-    userId: string,
-    userName: string
-) {
+export async function createTransaction(formData: FormData) {
+    const user = await requireUser();
     const siteId = formData.get("siteId") as string;
     const date = new Date(formData.get("date") as string);
     const description = formData.get("description") as string;
@@ -114,12 +123,12 @@ export async function createTransaction(
 
     await prisma.$transaction(async (tx) => {
         const transaction = await tx.transaction.create({
-            data: { siteId, date, description, cashIn, cashOut, netValue, addedBy: userName },
+            data: { siteId, date, description, cashIn, cashOut, netValue, addedBy: user.name },
         });
 
         await tx.auditLog.create({
             data: {
-                userId,
+                userId: user.id,
                 transactionId: transaction.id,
                 action: "create",
                 newValue: JSON.stringify({ date, description, cashIn, cashOut, netValue }),
@@ -134,9 +143,9 @@ export async function createTransaction(
 
 export async function updateTransaction(
     id: string,
-    formData: FormData,
-    userId: string
+    formData: FormData
 ) {
+    const user = await requireUser();
     const date = new Date(formData.get("date") as string);
     const description = formData.get("description") as string;
     const cashIn = parseFloat(formData.get("cashIn") as string) || 0;
@@ -153,7 +162,7 @@ export async function updateTransaction(
 
         await tx.auditLog.create({
             data: {
-                userId,
+                userId: user.id,
                 transactionId: id,
                 action: "update",
                 oldValue: JSON.stringify(oldTransaction),
@@ -169,20 +178,21 @@ export async function updateTransaction(
     return { success: true };
 }
 
-export async function softDeleteTransaction(id: string, userId: string) {
+export async function softDeleteTransaction(id: string) {
+    const user = await requireUser();
     const result = await prisma.$transaction(async (tx) => {
         const transaction = await tx.transaction.update({
             where: { id },
             data: {
                 isDeleted: true,
                 deletedAt: new Date(),
-                deletedBy: userId,
+                deletedBy: user.id,
             },
         });
 
         await tx.auditLog.create({
             data: {
-                userId,
+                userId: user.id,
                 transactionId: id,
                 action: "delete",
                 oldValue: JSON.stringify(transaction),
@@ -205,6 +215,8 @@ export async function getMasterLedger(filters?: {
     endDate?: string;
     keyword?: string;
 }) {
+    await requireUser();
+
     const where: Record<string, unknown> = { isDeleted: false };
 
     if (filters?.siteId) where.siteId = filters.siteId;
