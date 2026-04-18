@@ -100,6 +100,27 @@ export async function bulkMarkAttendance(
     const user = await requireUser();
     const dateObj = new Date(date);
 
+    if (entries.length === 0) {
+        return { success: false, error: "No attendance entries selected." };
+    }
+
+    const invalidEntries = entries.filter((entry) => !entry.siteId);
+    if (invalidEntries.length > 0) {
+        return { success: false, error: "Choose a site for every marked worker before saving." };
+    }
+
+    const siteIds = [...new Set(entries.map((entry) => entry.siteId))];
+    const existingSites = await prisma.site.findMany({
+        where: { id: { in: siteIds } },
+        select: { id: true },
+    });
+    const validSiteIds = new Set(existingSites.map((site) => site.id));
+
+    const missingSites = siteIds.filter((siteId) => !validSiteIds.has(siteId));
+    if (missingSites.length > 0) {
+        return { success: false, error: "One or more selected sites no longer exist. Refresh and try again." };
+    }
+
     for (const entry of entries) {
         await prisma.attendance.upsert({
             where: {
@@ -168,6 +189,7 @@ export async function getAttendanceHistory(filters?: {
     return prisma.attendance.findMany({
         where,
         include: {
+            site: { select: { name: true } },
             worker: {
                 include: { site: { select: { name: true } } },
             },
@@ -296,6 +318,7 @@ export async function getWorkerWageSummary(
 
     return {
         worker,
+        dailyWage: worker.wage || 0,
         presentDays,
         halfDays,
         absentDays,
