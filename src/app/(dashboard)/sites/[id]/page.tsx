@@ -9,6 +9,7 @@ import {
     getSiteSummary,
     createTransaction,
     softDeleteTransaction,
+    softDeleteSite,
     updateSiteStatus,
 } from "@/lib/actions/financialActions";
 
@@ -90,6 +91,12 @@ export default function SiteDetailPage() {
         void load();
     };
 
+    const handleDeleteSite = async () => {
+        if (!confirm("Are you sure you want to archive this site? It will be hidden from normal screens.")) return;
+        await softDeleteSite(siteId);
+        window.location.href = "/sites";
+    };
+
     const handleStatusChange = async (newStatus: string) => {
         await updateSiteStatus(siteId, newStatus);
         void load();
@@ -129,6 +136,12 @@ export default function SiteDetailPage() {
                 </div>
                 <button className="btn btn-primary" onClick={() => setShowModal(true)}>
                     <Plus size={16} /> Add Entry
+                </button>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+                <button className="btn btn-danger btn-sm" onClick={handleDeleteSite}>
+                    <Trash2 size={14} /> Archive Site
                 </button>
             </div>
 
