@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
 
   let siteName = "All Sites";
   if (siteId) {
-    const site = await prisma.site.findUnique({ where: { id: siteId } });
+    const site = await prisma.site.findFirst({ where: { id: siteId, isDeleted: false } });
     if (site) siteName = site.name;
   }
 
