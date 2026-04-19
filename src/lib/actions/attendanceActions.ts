@@ -111,7 +111,7 @@ export async function bulkMarkAttendance(
 
     const siteIds = [...new Set(entries.map((entry) => entry.siteId))];
     const existingSites = await prisma.site.findMany({
-        where: { id: { in: siteIds } },
+        where: { id: { in: siteIds }, isDeleted: false },
         select: { id: true },
     });
     const validSiteIds = new Set(existingSites.map((site) => site.id));
