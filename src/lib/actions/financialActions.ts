@@ -38,10 +38,14 @@ export async function updateSite(id: string, formData: FormData) {
     const startDate = new Date(formData.get("startDate") as string);
     const status = (formData.get("status") as string) || "active";
 
-    await prisma.site.update({
-        where: { id },
+    const result = await prisma.site.updateMany({
+        where: { id, isDeleted: false },
         data: { name, clientName, projectType, contractValue, startDate, status },
     });
+
+    if (result.count === 0) {
+        throw new Error("Site not found");
+    }
 
     revalidatePath("/sites");
     revalidatePath(`/sites/${id}`);
@@ -52,6 +56,7 @@ export async function getSites() {
     await requireUser();
 
     return prisma.site.findMany({
+        where: { isDeleted: false },
         orderBy: { createdAt: "desc" },
         include: {
             _count: { select: { transactions: { where: { isDeleted: false } } } },
@@ -62,10 +67,14 @@ export async function getSites() {
 export async function updateSiteStatus(id: string, status: string) {
     await requireUser();
 
-    await prisma.site.update({
-        where: { id },
+    const result = await prisma.site.updateMany({
+        where: { id, isDeleted: false },
         data: { status },
     });
+
+    if (result.count === 0) {
+        throw new Error("Site not found");
+    }
 
     revalidatePath("/sites");
     revalidatePath(`/sites/${id}`);
@@ -75,8 +84,8 @@ export async function updateSiteStatus(id: string, status: string) {
 export async function getSiteById(id: string) {
     await requireUser();
 
-    return prisma.site.findUnique({
-        where: { id },
+    return prisma.site.findFirst({
+        where: { id, isDeleted: false },
         include: {
             transactions: {
                 where: { isDeleted: false },
@@ -98,6 +107,13 @@ export async function getSiteById(id: string) {
 export async function getSiteSummary(siteId: string) {
     await requireUser();
 
+    const site = await prisma.site.findFirst({
+        where: { id: siteId, isDeleted: false },
+        select: { id: true },
+    });
+
+    if (!site) return null;
+
     const transactions = await prisma.transaction.findMany({
         where: { siteId, isDeleted: false },
     });
@@ -110,6 +126,31 @@ export async function getSiteSummary(siteId: string) {
     return { totalCashIn, totalCashOut, netPosition, lastEntry, count: transactions.length };
 }
 
+export async function softDeleteSite(id: string) {
+    const user = await requireUser(["admin"]);
+
+    const result = await prisma.site.updateMany({
+        where: { id, isDeleted: false },
+        data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: user.id,
+            status: "completed",
+        },
+    });
+
+    if (result.count === 0) {
+        throw new Error("Site not found");
+    }
+
+    revalidatePath("/sites");
+    revalidatePath("/dashboard");
+    revalidatePath("/ledger");
+    revalidatePath("/attendance");
+    revalidatePath(`/sites/${id}`);
+    return { success: true };
+}
+
 // ============ TRANSACTION ACTIONS ============
 
 export async function createTransaction(formData: FormData) {
@@ -120,6 +161,15 @@ export async function createTransaction(formData: FormData) {
     const cashIn = parseFloat(formData.get("cashIn") as string) || 0;
     const cashOut = parseFloat(formData.get("cashOut") as string) || 0;
     const netValue = cashIn - cashOut;
+
+    const site = await prisma.site.findFirst({
+        where: { id: siteId, isDeleted: false },
+        select: { id: true },
+    });
+
+    if (!site) {
+        throw new Error("Cannot add entries to a deleted site");
+    }
 
     await prisma.$transaction(async (tx) => {
         const transaction = await tx.transaction.create({
