@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
     const [siteCount, transactionAgg, workerCount, todayAttendance] =
         await Promise.all([
-            prisma.site.count(),
+            prisma.site.count({ where: { isDeleted: false } }),
             prisma.transaction.aggregate({
                 where: { isDeleted: false },
                 _sum: { cashIn: true, cashOut: true },
