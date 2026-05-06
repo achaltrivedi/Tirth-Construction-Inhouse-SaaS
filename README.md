@@ -55,7 +55,6 @@ npm run dev
 ```
 The application will be available at [http://localhost:3000](http://localhost:3000). You can view the raw database tables locally by running `npm run prisma:studio`.
 
-## 🤖 Context for AI Assistants
 If you are an AI assistant or a new dev picking up this codebase, keep these points in mind:
 - **Schema Updates**: Always run `npx prisma generate` immediately after modifying `prisma/schema.prisma` before attempting to fix any TypeScript errors involving missing relations.
 - **Worker/Site Logic**: A single worker's root `siteId` is nullable because workers float between sites. Focus instead on `Attendance.siteId` to track where a worker was dispatched to on any specific date.
